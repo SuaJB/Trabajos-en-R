@@ -1,0 +1,391 @@
+---
+title: "Examen II R Avanzado"
+author: "Súa Jiménez Brenes"
+output:
+  rmdformats::readthedown:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: false
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Librerías necesarias
+```{r, message=FALSE}
+library(warbleR)
+library(ggplot2)
+library(reshape2)
+```
+
+##PARTE I
+
+```{r, message=FALSE}
+#Descarga de la base de datos para el género Turdus de la librería warble
+#turdus <- querxc("Turdus", download = FALSE) Este paso es necesario si uno aún no tiene la base de datos, por motivos de tiempo yo la descargué y la trabajé desde mi computadora.
+setwd("/Users/Sua/OneDrive/R Avanzado/Examen 2/")
+turdus <- read.csv("turdus.csv")
+```
+
+###Pregunta a
+```{r, message=FALSE}
+turdus_0 <- turdus[grep("song", turdus$Vocalization_type),]
+```
+###Pregunta b y c
+El argumento "ingnore.case" permite obviar las diferencias entre mayusculas y minúsculas.
+```{r, message=FALSE}
+turdus2 <- turdus[grep("song", turdus$Vocalization_type, ignore.case = TRUE),]
+```
+
+##PARTE II
+
+###Pregunta a
+```{r, message=FALSE}
+dist_bird <- function(data) { 
+#Variables de la función
+data$Latitude <- as.numeric(as.character(data$Latitude))
+Lat_Up <- NULL
+Lat_Down <- NULL
+Lat_Mid <- NULL
+Specie <- NULL
+#Loop para separar por especie
+for(i in 1: length(unique(data$Specific_epithet))){
+  subdata <- data[data$Specific_epithet==unique(data$Specific_epithet)[i],]
+  upper_lim <- max(subdata$Latitude, na.rm = TRUE)
+  lower_lim <- min(subdata$Latitude, na.rm = TRUE)
+#Para calcular el punto medio se calculó la distancia entre los dos puntos, se dividió entre dos y despues se le restó al límite superior
+  midpoint <-upper_lim - (upper_lim - lower_lim)/2
+  
+Lat_Up <- c(Lat_Up, upper_lim)
+Lat_Down <- c(Lat_Down, lower_lim)
+Lat_Mid <- c(Lat_Mid, midpoint)  
+Specie <- c(Specie, paste("Turdus", " ", unique(data$Specific_epithet)[i]))
+  }
+
+data_final_Lat <<- data.frame(Specie, Lat_Up, Lat_Down, Lat_Mid)
+
+}
+    
+
+
+```
+
+Prueba de la función:
+```{r, message=FALSE}
+dist_bird(turdus)
+head(data_final_Lat)
+```
+
+###Pregunta b y c
+
+```{r, message=FALSE}
+dist_bird_long <- function(data, zone) { 
+  data$Longitude <- as.numeric(as.character(data$Longitude))
+  Lon_Up <- NULL
+  Lon_Down <- NULL
+  Lon_Mid <- NULL
+  Location <- NULL
+  Specie <- NULL
+  
+  for(i in 1: length(unique(data$Specific_epithet))){
+    subdata <- data[data$Specific_epithet==unique(data$Specific_epithet)[i],]
+    upper_lim <- max(subdata$Longitude, na.rm = TRUE)
+    lower_lim <- min(subdata$Longitude, na.rm = TRUE)
+    midpoint <-upper_lim - (upper_lim - lower_lim)/2
+#Argumento nuevo para la clasificación de la zona por NUevo mundo, Viejo mundo y ambos   
+    if (upper_lim > -25 & -25 > lower_lim) zona <- "Ambos" else if(lower_lim > -25) zona <- "Viejo Mundo" else zona <- "Nuevo Mundo"
+    
+    Lon_Up <- c(Lon_Up, upper_lim)
+    Lon_Down <- c(Lon_Down, lower_lim)
+    Lon_Mid <- c(Lon_Mid, midpoint)  
+    Location <- c(Location, zona)
+    Specie <- c(Specie, paste("Turdus", " ", unique(data$Specific_epithet)[i]))
+  }
+  
+  data_final_Lon <<- data.frame(Specie, Location, Lon_Up, Lon_Down, Lon_Mid)
+  
+  if( zone != "Ambos") data_final_Lon <<- data_final_Lon[data_final_Lon$Location==zone,]
+  
+}
+
+
+```
+
+Prueba la función:
+Ambos
+```{r, message=FALSE}
+dist_bird_long(turdus, zone = "Ambos")
+head(data_final_Lon)
+```
+Solo especies del Nuevo Mundo
+```{r, message=FALSE}
+dist_bird_long(turdus, zone = "Nuevo Mundo")
+head(data_final_Lon)
+```
+Solo especies del viejo Mundo
+```{r, message=FALSE}
+dist_bird_long(turdus, zone = "Viejo Mundo")
+head(data_final_Lon)
+```
+
+##PARTE III
+
+###Pregunta a y b
+
+```{r, message=FALSE}
+
+temp_bird <- function(data) { 
+  data$Date <- as.Date(data$Date)
+  data <- data[-grep("0216|0206|NA|0201", data$Date),]
+  data <- data[!is.na(data$Date),]
+  data$year <- format(data$Date,"%Y")
+  inicio <- NULL
+  final <- NULL
+  Rango <- NULL
+  Tipo <- NULL
+  Specie <- NULL
+  Year <- NULL
+  
+
+ for(g in 1:2) { 
+  
+  if(g==1) {
+    data1 <- data[grep("song", data$Vocalization_type, ignore.case = TRUE),]
+    tipo <- "Canto"
+  } else { 
+    data1 <- data[-grep("song", data$Vocalization_type, ignore.case = TRUE),]
+    tipo <- "Llamado"
+  }
+   
+  for(f in 1: length(na.omit(unique(data1$year)))){  
+   
+  data2 <- data1[data1$year==na.omit(unique(data1$year))[f],]
+   
+  for(i in 1: length(unique(data2$Specific_epithet))){
+    
+    subdata <- data2[data2$Specific_epithet==unique(data2$Specific_epithet)[i],]
+    final<- max(subdata$Date, na.rm = TRUE)
+    inicio <- min(subdata$Date, na.rm = TRUE)
+    rango <- as.numeric(final-inicio)
+    
+    Tipo <- c(Tipo, tipo)
+    Year <- c(Year,na.omit(unique(data1$year))[f])
+    Rango <- c(Rango, rango)
+    Specie <- c(Specie, paste("Turdus", " ", unique(data2$Specific_epithet)[i]))
+  }
+  }
+}
+  data_final <- data.frame(cbind(Specie,Tipo, Year, Rango))
+  data_final <- data_final[data_final$Rango!=0,]
+  data_final <<- data_final[data_final$Rango!=0,]
+
+  
+  }
+
+```
+
+Prueba de la función
+```{r, message=FALSE}
+temp_bird(turdus)
+  
+head(data_final)
+
+  cantos <- data_final[data_final$Tipo=="Canto",]
+  llamados <- data_final[data_final$Tipo=="Llamado",]
+  voca <- merge(cantos,llamados, by=c("Specie","Year"), all.x=FALSE, all.y = FALSE)
+  voc <- data.frame(reshape2::melt(voca, id=c("Specie","Year","Tipo.x","Tipo.y")))
+  levels(voc$variable) <- c("Canto", "Llamado")
+    colnames(voc) <- c("Specie", "Year", "Tipo.x", "Tipo.y", "Tipo", "Rango")
+voc$Rango <- as.numeric(voc$Rango)
+
+boxplot(voc$Rango~voc$Tipo) #Esto si le pongo nombre a los ejes el RMD no me deja, en el script están bien
+  
+  print( paste("Su valor de p es:", round(t.test(voc$Rango~voc$Tipo, paired=T)$p.value,5)))
+```
+
+###Pregunta c
+
+Primero junté los datos de cada especie por año para que esta base fuese igual que la base de latitud. luego, junté ambas bases por especie para eliminar especies que no tuvieran ambos datos.
+
+```{r, message=FALSE}
+cantos$Rango <- as.numeric(as.character(cantos$Rango))
+cantos_mean<- aggregate(cantos$Rango, list(cantos$Specie), mean)
+colnames(cantos_mean)<- c("Specie","Rango")
+Lat_cantos<- merge(cantos_mean,data_final_Lat[, c(1,4)], by="Specie", all=FALSE)
+```
+
+Visualización de los datos:
+```{r, message=FALSE}
+plot(Lat_cantos$Lat_Mid, Lat_cantos$Rango)
+```
+Pareciera que existe una relación negativa entre la latitud y el rango de los cantos
+
+
+Comprobación de supuestos de normalidad 
+```{r, message=FALSE}
+
+hist(Lat_cantos$Lat_Mid)
+hist(Lat_cantos$Rango)
+
+qqnorm(Lat_cantos$Lat_Mid, col = "grey70", pch = 20, cex= 2)
+#qqline(Lat_cantos$Lat_Mid, col = "red3", lwd = 2, lty = 5) esta linea no la corre el Markdown, en el script normal si corre
+
+qqnorm(Lat_cantos$Rango, col = "grey70", pch = 20, cex= 2)
+#qqline(Lat_cantos$Rango, col = "red3", lwd = 2, lty = 5) igual
+```
+
+Realicé el modelo y lo comparé con el modelo nulo
+```{r, }
+m0 <- lm(Rango ~ 1, data=Lat_cantos)
+m1 <- lm(Rango ~ Lat_Mid, data=Lat_cantos)
+
+AIC(m0, m1)
+summary(m1)
+
+```
+
+El modelo con latitud parece ser un buen modelo, indica que la latitud presenta una relación negativa con el rango temporal de los cantos. 
+
+Comprobación de la homocesasticidad y normalidad del modelo. 
+```{r, message=FALSE}
+par(mfrow = c(2, 2), oma = c(0, 0, 2, 0))
+plot(m1)
+```
+
+El modelo pareciera seguir los supuestos por lo que proseguí a la graficación.
+
+```{r, message=FALSE}
+##Grafico cantos
+
+newdata <- data.frame(Lat_Mid = seq(min(Lat_cantos$Lat_Mid), max(Lat_cantos$Lat_Mid), l = 1000))
+newdata2 <- cbind(newdata, predict(m1, newdata, 
+                                   type = "response", 
+                                   se.fit = TRUE))
+
+# Objeto con valores predichos por el modelo
+fit <- newdata2$fit
+LL <- newdata2$fit- 1.96 * newdata2$se.fit
+UL <- newdata2$fit+ 1.96 * newdata2$se.fit
+
+# Guardar valores predichos en nueva base de datos
+newdata3 <- data.frame(newdata2$Lat_Mid,
+                       fit, LL, UL)
+
+names(newdata3) <- c("Lat_Mid", "fit", "LL", "UL")
+
+# Grafico 1{
+
+library(ggplot2)
+
+p1 <- ggplot(newdata3, aes(Lat_Mid, fit)) +
+  geom_ribbon(aes(ymin = LL, ymax = UL), fill = "navyblue", alpha = 0.30) +
+  geom_line(colour = "navyblue", size = 1.5, lty = 5) +
+  labs(x = "Latitud", y = "Rango temporal de cantos (días)") +
+  theme_classic() +
+  theme(panel.border= element_blank())+
+  theme(axis.line.x = element_line(color="black", size = .7),
+        axis.line.y = element_line(color="black", size = .7)) +
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14)) +
+  theme(text = element_text(size=12)) 
+
+p1
+
+p1 + geom_point(data = Lat_cantos, aes(Lat_Mid, Rango), 
+                shape = 16, color = "red",
+                alpha = 0.5,
+                size = 3,
+                show.legend = F)
+```
+El gráfico confirma que el modelo se ajusta a los datos y representa bien la tendencia. 
+
+###Pregunta d
+
+Ahora vienen los llamados
+
+```{r, message=FALSE}
+##LLamados 
+llamados_mean<- aggregate(llamados$Rango, list(llamados$Specie), mean)
+colnames(llamados_mean)<- c("Specie","Rango")
+
+Lat_llamados<- merge(llamados_mean,data_final_Lat[, c(1,4)], by="Specie", all=FALSE)
+
+
+#plot(Lat_llamados$Lat_Mid, Lat_llamados$Rango) esto tampoco me quiere correr en el RMD
+
+#hist(Lat_llamados$Rango)
+```
+Parece que no existe una correlación entre las variables pero igual realicé un modelo y un gráfico.
+```{r, message=FALSE}
+#Supuesto normalidad
+#qqnorm(Lat_llamados$Lat_Mid, col = "grey70", pch = 20, cex= 2) no me corre en el RMD
+#qqline(Lat_llamados$Lat_Mid, col = "red3", lwd = 2, lty = 5)
+
+#qqnorm(Lat_llamados$Rango, col = "grey70", pch = 20, cex= 2) no me corre en el RMD
+#qqline(Lat_llamados$Rango, col = "red3", lwd = 2, lty = 5)
+
+#Modelo
+
+m0 <- lm(Rango ~ 1, data=Lat_llamados)
+m1 <- lm(Rango ~ Lat_Mid, data=Lat_llamados)
+
+AIC(m0, m1)
+summary(m1)
+
+par(mfrow = c(2, 2), oma = c(0, 0, 2, 0))
+#plot(m1)
+```
+El modelo indica que no existe una correlación y lo mismo se observa en el gráfico de predicción del modelo. 
+
+```{r, message=FALSE}
+##Grafico llamados
+
+newdata <- data.frame(Lat_Mid = seq(min(Lat_llamados$Lat_Mid), max(Lat_llamados$Lat_Mid), l = 1000))
+newdata2 <- cbind(newdata, predict(m1, newdata, 
+                                   type = "response", 
+                                   se.fit = TRUE))
+
+
+
+# Objeto con valores predichos por el modelo
+fit <- newdata2$fit
+LL <- newdata2$fit- 1.96 * newdata2$se.fit
+UL <- newdata2$fit+ 1.96 * newdata2$se.fit
+
+# Guardar valores predichos en nueva base de datos
+newdata3 <- data.frame(newdata2$Lat_Mid,
+                       fit, LL, UL)
+
+names(newdata3) <- c("Lat_Mid", "fit", "LL", "UL")
+
+# Grafico llamados
+
+p2 <- ggplot(newdata3, aes(Lat_Mid, fit)) +
+  geom_ribbon(aes(ymin = LL, ymax = UL), fill = "navyblue", alpha = 0.30) +
+  geom_line(colour = "navyblue", size = 1.5, lty = 5) +
+  labs(x = "Latitud", y = "Rango temporal de llamados (días)") +
+  theme_classic() +
+  theme(panel.border= element_blank())+
+  theme(axis.line.x = element_line(color="black", size = .7),
+        axis.line.y = element_line(color="black", size = .7)) +
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14)) +
+  theme(text = element_text(size=12)) 
+#+scale_y_continuous(expand = c(0, 0),  breaks = seq(0, 1, 0.25)) 
+p2
+
+p2 + geom_point(data = Lat_llamados, aes(Lat_Mid, Rango), 
+                shape = 16, color = "red",
+                alpha = 0.5,
+                size = 3,
+                show.legend = F)
+
+```
+
+
+
+#FIN
